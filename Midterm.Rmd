@@ -1,0 +1,99 @@
+---
+title: "Midterm"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1. Import data from yahoo finance
+-----------------------------------------------------------------------------
+#There are two primary time series data : xts and zoo
+-----------------------------------------------------------------------------
+install.packages("quantmod")
+```{r}
+library(quantmod)
+tickers = c("SPY", "QQQ", "EEM", "IWM", "EFA", "TLT", "IYR", "GLD")
+getSymbols(tickers, from = "2010-01-01", auto.assign = TRUE)
+```
+# Getting new data from year 2010 only
+```{r}
+data = new.env()
+getSymbols(tickers, from = "2010-01-01/2010-01-31", env = data , auto.assign = TRUE)
+ls(data)
+names(data)
+head(data$SPY)
+```
+# Merge Adjusted Price together
+```{r}
+firmList<-merge(Ad(SPY), Ad(QQQ), Ad(EEM),Ad(IWM), Ad(EFA), Ad(TLT),Ad(IYR),Ad(GLD))
+firmList10=firmList['2010']
+firmList10
+head(firmList10)
+colnames(firmList10)<-c("SPY", "QQQ", "EEM","IWM","EFA","TLT","IYR","GLD")
+```
+
+# 2.Calculate daily return from year 2010 data
+
+```{r}
+firmDaily.ret<-firmList10/lag(firmList10)-1
+head(firmDaily.ret)
+firmDaily.ret<-firmDaily.ret[-1,]
+head(firmDaily.ret)
+class(firmDaily.ret)
+```
+
+# 3. Calculate weekly return, covariance matrix, and weighted MVP
+
+```{r}
+weekly.end <- endpoints(firmList10, on = "weeks")
+weekly <- period.apply(firmList10, INDEX = weekly.end, FUN = mean)
+head(weekly)
+firmWeekly.ret<-weekly/lag(weekly)-1
+head(firmWeekly.ret)
+firmWeekly.ret<-firmWeekly.ret[-1,]
+head(firmWeekly.ret)
+class(firmWeekly.ret)
+```
+#4. Calculate montly return, covariance matrix, and weighted MVP
+```{r}
+month.end <- endpoints(weekly, on = "months")
+monthly <- period.apply(weekly, INDEX = month.end, FUN = mean)
+head(monthly)
+firmMonthly.ret<-monthly/lag(monthly)-1
+head(firmMonthly.ret)
+firmMonthly.ret<-firmMonthly.ret[-1,]
+head(firmMonthly.ret)
+class(firmMonthly.ret)
+```
+#5. Download Fama/French 3 factors models monthly data, convert to xts file
+install.packages('Ecdat')
+install.packages('robust')
+```{r}
+options(digits=5)
+FF_data = read.csv("F-F_Research_Data_Factors.CSV")
+head(FF_data)
+names(FF_data)
+attach(FF_data)
+library("Ecdat")
+library("robust")
+stocks=cbind(N=Mkt.RF,SMB,HML)
+fit = lm(cbind(Mkt.RF,SMB,HML)~RF)
+options(digits=3)
+SMB
+pairs(cbind(Mkt.RF,SMB,HML))
+cor(fit$residuals)
+covRob(fit$residuals,cor=F)
+cor.test(fit$residuals[,1], fit$residuals[,2])
+cor.test(fit$residuals[,1], fit$residuals[,3])
+cor.test(fit$residuals[,2], fit$residuals[,3])
+pairs(fit$residuals)
+n=dim(FF_data)[1]
+sigF = as.matrix(var(cbind(Mkt.RF,SMB,HML)))
+sigF
+bbeta = as.matrix(fit$coef)
+bbeta = t( bbeta[-1,])
+bbeta
+resig2 = apply((fit$resid)^2, 2, sum)/(n-3-1)
+resig2 = diag(resig2)
+```
